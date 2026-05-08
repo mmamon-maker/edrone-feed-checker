@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>edrone Feed Checker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f4f6fa;color:#1a1a2e;min-height:100vh}
+header{background:linear-gradient(135deg,#1a1a2e,#16213e);color:white;padding:15px 22px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+header h1{font-size:1.12rem;font-weight:700}
+.hbadge{background:#e94560;font-size:.6rem;font-weight:800;padding:2px 7px;border-radius:10px;letter-spacing:1px;margin-left:6px;vertical-align:middle}
+.gauth-btn{display:flex;align-items:center;gap:6px;background:white;color:#1a1a2e;border:none;border-radius:7px;padding:6px 11px;font-size:.76rem;font-weight:700;cursor:pointer}
+.gauth-btn:hover{opacity:.85}
+.gauth-status{font-size:.7rem;color:#94a3b8;text-align:right}
+.gauth-ok{color:#68d391}
+.container{max-width:980px;margin:0 auto;padding:22px 13px}
+
+/* CLIENT BAR */
+.client-bar{background:white;border-radius:13px;padding:15px 18px;margin-bottom:16px;box-shadow:0 2px 10px rgba(0,0,0,.05);display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.ci-group{display:flex;flex-direction:column;gap:3px}
+.ci-group label{font-size:.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px}
+.ci-group input{padding:7px 10px;border:2px solid #e2e8f0;border-radius:7px;font-size:.84rem;outline:none;transition:border .2s;min-width:150px}
+.ci-group input:focus{border-color:#e94560}
+.ci-group input.filled{border-color:#10b981;background:#f0fdf4}
+
+.card{background:white;border-radius:13px;padding:20px;margin-bottom:16px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.card h2{font-size:.9rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.tabs{display:flex;gap:6px;margin-bottom:14px}
+.tab{padding:6px 14px;border-radius:7px;border:2px solid #e2e8f0;background:white;cursor:pointer;font-size:.8rem;font-weight:600;color:#64748b;transition:all .2s}
+.tab.active{border-color:#e94560;background:#fff0f3;color:#e94560}
+.upload-area{border:2px dashed #cbd5e1;border-radius:10px;padding:32px 14px;text-align:center;cursor:pointer;transition:all .2s;background:#f8fafc}
+.upload-area:hover,.upload-area.dragover{border-color:#e94560;background:#fff0f3}
+.upload-area .icon{font-size:2rem;margin-bottom:9px}
+.upload-area p{color:#64748b;font-size:.84rem}
+#fileInput{display:none}
+.url-row{display:flex;gap:7px}
+.url-row input{flex:1;padding:8px 11px;border:2px solid #e2e8f0;border-radius:7px;font-size:.84rem;outline:none}
+.url-row input:focus{border-color:#e94560}
+.btn{padding:8px 18px;background:#e94560;color:white;border:none;border-radius:7px;font-size:.82rem;font-weight:700;cursor:pointer;transition:background .2s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.btn:hover{background:#c73652}
+.btn:disabled{background:#cbd5e1;cursor:not-allowed}
+.btn-outline{background:white;color:#e94560;border:2px solid #e94560}
+.btn-outline:hover{background:#fff0f3}
+.btn-green{background:#10b981}.btn-green:hover{background:#059669}
+.btn-jira{background:#0052CC;color:white}.btn-jira:hover{background:#003d99}
+.file-info{background:#f0fdf4;border:1.5px solid #a7f3d0;border-radius:7px;padding:8px 12px;font-size:.8rem;color:#065f46;margin-top:9px;display:none}
+
+/* SUMMARY GRID */
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:14px}
+.stat{background:#f8fafc;border-radius:10px;padding:14px;text-align:center;border:2px solid transparent}
+.stat.ok{border-color:#10b981;background:#f0fdf4}
+.stat.warn{border-color:#f59e0b;background:#fffbeb}
+.stat.err{border-color:#ef4444;background:#fef2f2}
+.stat .num{font-size:1.8rem;font-weight:800}
+.stat.ok .num{color:#10b981}.stat.warn .num{color:#f59e0b}.stat.err .num{color:#ef4444}
+.stat .label{font-size:.7rem;color:#64748b;font-weight:600;margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
+
+/* CLIENT SUMMARY */
+.client-summary{background:linear-gradient(135deg,#f0fdf4,#f8fafc);border:2px solid #a7f3d0;border-radius:13px;padding:18px 20px;margin-bottom:16px}
+.client-summary h3{font-size:.88rem;font-weight:700;color:#065f46;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.summary-msg{font-size:.84rem;line-height:1.65;color:#1a1a2e;white-space:pre-wrap;background:white;border:1.5px solid #d1fae5;border-radius:8px;padding:12px 14px;margin-bottom:10px;font-family:inherit}
+.copy-btn{padding:6px 14px;background:#10b981;color:white;border:none;border-radius:6px;font-size:.78rem;font-weight:700;cursor:pointer}
+.copy-btn:hover{background:#059669}
+
+/* ISSUES */
+.filters{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.filter-btn{padding:4px 11px;border-radius:16px;border:2px solid #e2e8f0;background:white;cursor:pointer;font-size:.76rem;font-weight:600;color:#64748b}
+.filter-btn.active{border-color:#e94560;color:#e94560;background:#fff0f3}
+.filter-btn.f-error.active{border-color:#ef4444;color:#ef4444;background:#fef2f2}
+.filter-btn.f-warning.active{border-color:#f59e0b;color:#f59e0b;background:#fffbeb}
+.filter-btn.f-ok.active{border-color:#10b981;color:#10b981;background:#f0fdf4}
+.search-input{padding:5px 10px;border:2px solid #e2e8f0;border-radius:7px;font-size:.8rem;outline:none;min-width:170px}
+.search-input:focus{border-color:#e94560}
+.issues-list{max-height:500px;overflow-y:auto}
+.issue-item{border:1.5px solid #e2e8f0;border-radius:9px;margin-bottom:8px;overflow:hidden}
+.issue-header{padding:10px 13px;display:flex;align-items:flex-start;gap:9px;cursor:pointer;user-select:none}
+.issue-header:hover{background:#f8fafc}
+.badge{font-size:.66rem;font-weight:800;padding:2px 7px;border-radius:9px;white-space:nowrap;flex-shrink:0;margin-top:1px}
+.badge.error{background:#fef2f2;color:#ef4444;border:1px solid #fecaca}
+.badge.warning{background:#fffbeb;color:#f59e0b;border:1px solid #fde68a}
+.badge.ok{background:#f0fdf4;color:#10b981;border:1px solid #a7f3d0}
+.issue-title{font-weight:700;font-size:.85rem;flex:1}
+.issue-count{background:#f1f5f9;color:#475569;font-size:.7rem;font-weight:700;padding:2px 6px;border-radius:8px;flex-shrink:0}
+.issue-body{display:none;padding:0 13px 12px}
+.issue-body.open{display:block}
+.issue-desc{font-size:.78rem;color:#475569;margin-bottom:8px;line-height:1.5}
+.products-table{width:100%;border-collapse:collapse;font-size:.76rem}
+.products-table th{background:#f1f5f9;padding:5px 8px;text-align:left;font-weight:700;color:#475569}
+.products-table td{padding:5px 8px;border-top:1px solid #f1f5f9;vertical-align:top;word-break:break-word;max-width:240px}
+.products-table tr:hover td{background:#f8fafc}
+.val-bad{color:#ef4444;font-weight:600}
+.val-miss{color:#94a3b8;font-style:italic}
+
+/* EXPORT BAR */
+.export-bar{display:flex;gap:8px;margin-top:16px;justify-content:flex-end;flex-wrap:wrap;align-items:center}
+.mini-spin{width:13px;height:13px;border:2px solid #e2e8f0;border-top-color:#e94560;border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+
+/* JIRA MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:14px}
+.modal{background:white;border-radius:14px;padding:24px;max-width:520px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25);max-height:90vh;overflow-y:auto}
+.modal h3{font-size:1rem;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.modal label{font-size:.78rem;font-weight:700;color:#64748b;display:block;margin-bottom:4px;margin-top:10px}
+.modal input,.modal textarea,.modal select{width:100%;padding:8px 11px;border:2px solid #e2e8f0;border-radius:7px;font-size:.83rem;outline:none;font-family:inherit}
+.modal input:focus,.modal textarea:focus,.modal select:focus{border-color:#0052CC}
+.modal textarea{resize:vertical;min-height:90px}
+.modal-btns{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.jira-preview{background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:.78rem;color:#475569;margin-top:8px;line-height:1.6;max-height:120px;overflow-y:auto}
+
+.loader{display:none;text-align:center;padding:32px}
+.loader.show{display:block}
+.spinner{width:36px;height:36px;border:4px solid #f1f5f9;border-top-color:#e94560;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:22px;right:22px;background:#1a1a2e;color:white;padding:11px 18px;border-radius:9px;font-size:.82rem;font-weight:600;z-index:9999;transform:translateY(80px);opacity:0;transition:all .3s;max-width:300px}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{background:#10b981}
+.toast.error{background:#ef4444}
+.gsLoading{display:none;font-size:.78rem;color:#64748b;align-items:center;gap:5px}
+
+/* FEED MATCHING */
+.fm-gmc-warn{background:#fef2f2;border:2px solid #fecaca;border-radius:10px;padding:12px 15px;margin-bottom:14px;display:flex;align-items:flex-start;gap:10px;font-size:.82rem;color:#991b1b;line-height:1.5}
+.fm-gmc-warn svg{flex-shrink:0;margin-top:1px}
+.fm-step{background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.fm-step-title{font-size:.8rem;font-weight:700;color:#1a1a2e;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.fm-step-num{background:#e94560;color:white;width:20px;height:20px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:800;flex-shrink:0}
+.fm-event-area{border:2px dashed #cbd5e1;border-radius:10px;padding:14px;background:white;margin-bottom:8px}
+.fm-event-area textarea{width:100%;min-height:110px;border:2px solid #e2e8f0;border-radius:7px;padding:9px 11px;font-size:.78rem;font-family:'Courier New',monospace;outline:none;resize:vertical;color:#1a1a2e;background:white}
+.fm-event-area textarea:focus{border-color:#e94560}
+.fm-hint{font-size:.73rem;color:#94a3b8;margin-top:5px;line-height:1.5}
+.fm-example-btn{padding:4px 10px;border:1.5px solid #e94560;border-radius:6px;background:white;color:#e94560;font-size:.74rem;font-weight:700;cursor:pointer}
+.fm-example-btn:hover{background:#fff0f3}
+.fm-result{display:none;margin-top:16px}
+.fm-result.show{display:block}
+.fm-divider{height:1px;background:#e2e8f0;margin:16px 0}
+.fm-section-title{font-size:.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px}
+.fm-ids-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+@media(max-width:580px){.fm-ids-row{grid-template-columns:1fr}}
+.fm-id-box{background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:9px;padding:11px 13px}
+.fm-id-box h5{font-size:.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.3px;margin-bottom:7px}
+.fm-tag{display:inline-block;font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:10px;margin:2px;font-family:'Courier New',monospace}
+.fm-tag-blue{background:#e0f2fe;color:#0369a1}
+.fm-tag-green{background:#d1fae5;color:#065f46}
+.fm-tag-red{background:#fee2e2;color:#991b1b}
+.fm-tag-gray{background:#f1f5f9;color:#475569}
+.fm-match-result{border-radius:10px;padding:14px 16px;margin-bottom:12px;border:2px solid}
+.fm-match-ok{background:#f0fdf4;border-color:#10b981}
+.fm-match-warn{background:#fffbeb;border-color:#f59e0b}
+.fm-match-err{background:#fef2f2;border-color:#ef4444}
+.fm-match-title{font-size:.85rem;font-weight:700;margin-bottom:6px}
+.fm-match-ok .fm-match-title{color:#065f46}
+.fm-match-warn .fm-match-title{color:#92400e}
+.fm-match-err .fm-match-title{color:#991b1b}
+.fm-match-body{font-size:.8rem;line-height:1.6;color:#475569}
+.fm-config-box{background:linear-gradient(135deg,#f0fdf4,#eff6ff);border:2px solid #a7f3d0;border-radius:11px;padding:16px 18px;margin-bottom:12px}
+.fm-config-box h4{font-size:.88rem;font-weight:700;color:#065f46;margin-bottom:4px}
+.fm-config-box p{font-size:.76rem;color:#475569;margin-bottom:12px}
+.fm-config-table{width:100%;border-collapse:collapse;font-size:.8rem}
+.fm-config-table th{background:#e0f2fe;padding:7px 10px;text-align:left;font-weight:700;color:#0369a1;font-size:.71rem;text-transform:uppercase}
+.fm-config-table td{padding:8px 10px;border-top:1px solid #e0f2fe;vertical-align:middle}
+.fm-config-table td:first-child{color:#475569;font-weight:600;width:50%}
+.fm-config-table td:nth-child(2){font-family:'Courier New',monospace;font-weight:700;color:#1a1a2e;background:#f0f9ff;border-radius:4px;width:25%}
+.fm-config-table td:nth-child(3){font-size:.72rem;color:#64748b;width:25%}
+.fm-config-table tr:hover td{background:#e0f2fe}
+.fm-config-table .td-optional{color:#94a3b8;font-style:italic;font-family:inherit;font-weight:400;background:transparent}
+.copy-config-btn{margin-top:10px;padding:7px 16px;background:#3b82f6;color:white;border:none;border-radius:6px;font-size:.78rem;font-weight:700;cursor:pointer}
+.copy-config-btn:hover{background:#2563eb}
+.fm-note-box{background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;padding:10px 13px;font-size:.78rem;color:#1e40af;line-height:1.55;margin-top:8px}
+</style>
+</head>
+<body>
+
+<header>
+  <div><h1>⚡ edrone Feed Checker <span class="hbadge">BETA</span></h1></div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">
+    <button class="gauth-btn" id="gAuthBtn" onclick="handleGoogleAuth()">
+      <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.14 0 5.95 1.08 8.17 2.86l6.1-6.1C34.36 3.09 29.44 1 24 1 14.82 1 7.03 6.48 3.59 14.22l7.15 5.55C12.48 13.39 17.77 9.5 24 9.5z"/><path fill="#4285F4" d="M46.16 24.5c0-1.64-.15-3.22-.42-4.75H24v9h12.45c-.54 2.9-2.18 5.36-4.63 7.02l7.14 5.54C43.15 37.14 46.16 31.3 46.16 24.5z"/><path fill="#FBBC05" d="M10.74 28.23A14.6 14.6 0 0 1 9.5 24c0-1.47.25-2.9.71-4.23l-7.15-5.55A23.94 23.94 0 0 0 0 24c0 3.87.92 7.53 2.55 10.78l8.19-6.55z"/><path fill="#34A853" d="M24 47c5.44 0 10.01-1.8 13.35-4.9l-7.14-5.54C28.4 38.27 26.3 39 24 39c-6.23 0-11.52-3.89-13.26-9.27l-8.19 6.55C6.03 43.52 14.48 47 24 47z"/></svg>
+      Connect to Google
+    </button>
+    <div class="gauth-status" id="gAuthStatus">Not connected</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- CLIENT INFO BAR -->
+  <div class="client-bar">
+    <div style="font-size:.8rem;font-weight:700;color:#64748b;white-space:nowrap;align-self:center">👤 Client details</div>
+    <div class="ci-group">
+      <label>Client / shop name</label>
+      <input type="text" id="clientName" placeholder="e.g. SuperShop.pl" oninput="markFilled(this)"/>
+    </div>
+    <div class="ci-group">
+      <label>Tracker ID (edrone)</label>
+      <input type="text" id="clientTrackerId" placeholder="e.g. 12345" oninput="markFilled(this)"/>
+    </div>
+    <div class="ci-group">
+      <label>URL feeda</label>
+      <input type="text" id="clientFeedUrl" placeholder="https://shop.com/feed.xml" oninput="markFilled(this)"/>
+    </div>
+  </div>
+
+  <!-- UPLOAD CARD -->
+  <div class="card">
+    <h2>📂 Upload product feed</h2>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('file')">XML / CSV file</button>
+    </div>
+    <div id="tab-file">
+      <div class="upload-area" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="icon">📄</div>
+        <p><strong>Click or drag a file here</strong></p>
+        <p>Supported: GMC, Ceneo, IAI/IdoSell (XML or CSV)</p>
+      </div>
+      <input type="file" id="fileInput" accept=".xml,.csv"/>
+      <div class="file-info" id="fileInfo"></div>
+    </div>
+
+    <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="checkBtn" onclick="runCheck()" disabled>🔍 Check feed</button>
+      <button class="btn btn-outline" onclick="resetAll()">↺ Reset</button>
+    </div>
+  </div>
+
+  <div class="loader" id="loader"><div class="spinner"></div><p style="color:#64748b;font-weight:600">Analysing feed...</p></div>
+
+  <div id="results" style="display:none">
+
+    <!-- SUMMARY STATS -->
+    <div class="card">
+      <h2>📊 Summary</h2>
+      <div class="summary-grid" id="summaryGrid"></div>
+      <div id="formatInfo" style="font-size:.78rem;color:#64748b"></div>
+    </div>
+
+    <!-- CLIENT MESSAGE -->
+    <div class="client-summary" id="clientSummaryCard">
+      <h3>✉️ Client message (ready to send)</h3>
+      <div style="margin-bottom:12px">
+        <div style="font-size:.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px">🇬🇧 English</div>
+        <div class="summary-msg" id="clientSummaryMsgEN"></div>
+        <button class="copy-btn" onclick="copyMsg('EN')" style="margin-top:7px">📋 Copy English</button>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px">🇵🇱 Polski</div>
+        <div class="summary-msg" id="clientSummaryMsgPL"></div>
+        <button class="copy-btn" onclick="copyMsg('PL')" style="margin-top:7px">📋 Kopiuj po polsku</button>
+      </div>
+      <div>
+        <div style="font-size:.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px">🇧🇷 Português (BR)</div>
+        <div class="summary-msg" id="clientSummaryMsgPT"></div>
+        <button class="copy-btn" onclick="copyMsg('PT')" style="margin-top:7px">📋 Copiar em português</button>
+      </div>
+    </div>
+
+    <!-- ISSUES -->
+    <div class="card">
+      <h2>🔎 Validation results</h2>
+      <div class="filters">
+        <button class="filter-btn f-error active" id="f-error" onclick="toggleFilter('error')">❌ Errors</button>
+        <button class="filter-btn f-warning active" id="f-warning" onclick="toggleFilter('warning')">⚠️ Warnings</button>
+        <button class="filter-btn f-ok active" id="f-ok" onclick="toggleFilter('ok')">✅ OK</button>
+        <input type="text" class="search-input" id="searchInput" placeholder="Search field..." oninput="renderIssues()"/>
+      </div>
+      <div class="issues-list" id="issuesList"></div>
+    </div>
+
+
+    <!-- EXPORT BAR -->
+    <div class="export-bar">
+
+
+      <button class="btn btn-outline" onclick="exportCSV()">⬇️ Download CSV</button>
+    </div>
+  </div>
+</div>
+
+<!-- FEED MATCHING ANALYZER -->
+<div class="container" style="padding-top:0">
+  <div class="card" id="feedMatchingCard">
+    <h2>🔧 Feed Matching Analyzer</h2>
+
+    <div class="fm-gmc-warn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div><strong>GMC (Google Merchant Center) feeds only.</strong> IAI and Ceneo feeds do not require matching — it is neither required nor possible for them.</div>
+    </div>
+
+    <!-- KROK 1: Event JSON -->
+    <div class="fm-step">
+      <div class="fm-step-title"><span class="fm-step-num">1</span> Paste event JSON from edrone Event Monitor</div>
+      <div style="font-size:.78rem;color:#475569;margin-bottom:8px;line-height:1.5">
+        Go to edrone panel → <strong>Integrations → Platforms → Event Monitor</strong>, find a <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px">product_view</code> or <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px">add_to_cart</code> event → open it → click <strong>Code</strong> → <strong>Copy</strong> → paste the copied JSON below. The checker looks for <strong>product_ids</strong> and <strong>product_skus</strong> fields.
+      </div>
+      <div class="fm-event-area">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+          <span style="font-size:.76rem;font-weight:700;color:#475569">Event JSON</span>
+          <button class="fm-example-btn" onclick="document.getElementById('fmJsonInput').value='';showToast('Cleared','success')">✕ Clear</button>
+        </div>
+        <textarea id="fmJsonInput" placeholder="Paste the event JSON copied from edrone Event Monitor here..."></textarea>
+        <div class="fm-hint">💡 One event is enough. The checker will read product_ids and product_skus and compare them against the feed.</div>
+      </div>
+    </div>
+
+    <!-- KROK 2: Feed -->
+    <div class="fm-step">
+      <div class="fm-step-title"><span class="fm-step-num">2</span> Product feed</div>
+      <div id="fmFeedStatus" style="font-size:.8rem;color:#64748b;padding:8px 0"></div>
+    </div>
+
+    <button class="btn" onclick="runFeedMatching()" style="margin-top:4px">🔍 Analyse Feed Matching</button>
+
+    <!-- WYNIKI -->
+    <div class="fm-result" id="fmResult">
+      <div class="fm-divider"></div>
+
+      <!-- Dane z eventu -->
+      <div class="fm-section-title">Dane z eventu</div>
+      <div class="fm-ids-row">
+        <div class="fm-id-box">
+          <h5>product_ids</h5>
+          <div id="fmEventProductIds"><span style="font-size:.75rem;color:#94a3b8">brak</span></div>
+        </div>
+        <div class="fm-id-box">
+          <h5>product_skus</h5>
+          <div id="fmEventProductSkus"><span style="font-size:.75rem;color:#94a3b8">brak</span></div>
+        </div>
+      </div>
+
+      <!-- Wynik dopasowania -->
+      <div class="fm-section-title">Wynik dopasowania</div>
+      <div id="fmMatchResult"></div>
+
+      <!-- Konfiguracja -->
+      <div class="fm-config-box" id="fmConfigBox" style="display:none">
+        <h4>✅ Recommended Feed Matching configuration</h4>
+        <p>Copy the values below into the edrone panel → Admin → Feed → Feed Matching:</p>
+        <table class="fm-config-table">
+          <thead><tr><th>Field in edrone panel</th><th>Value</th><th>Note</th></tr></thead>
+          <tbody id="fmConfigTableBody"></tbody>
+        </table>
+      </div>
+
+      <div id="fmCategoryNote" style="display:none">
+        <div id="fmCategoryAnalysis"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JIRA MODAL -->
+<div class="modal-bg" id="jiraModal" style="display:none">
+  <div class="modal">
+    <h3>
+      <svg width="18" height="18" viewBox="0 0 32 32" fill="#0052CC"><path d="M16 2C8.268 2 2 8.268 2 16s6.268 14 14 14 14-6.268 14-14S23.732 2 16 2zm5.5 19.5l-2-2 2-2-6-4v-4l8 6-2 6z"/></svg>
+      Create Jira Task — project TS
+    </h3>
+
+    <label>Task title</label>
+    <input type="text" id="jiraSummary"/>
+
+    <label>Type issue</label>
+    <select id="jiraIssueTypee">
+      <option value="Task">Task</option>
+      <option value="Bug">Bug</option>
+      <option value="Story">Story</option>
+    </select>
+
+    <label>Description (edit if needed)</label>
+    <textarea id="jiraDesc" rows="8"></textarea>
+
+    <label>Error preview (included in description)</label>
+    <div class="jira-preview" id="jiraPreview"></div>
+
+    <div class="modal-btns">
+      <button class="btn btn-outline" onclick="closeJiraModal()">Cancel</button>
+      <button class="btn btn-jira" id="jiraSubmitBtn" onclick="submitJiraTask()">
+        <span id="jiraSubmitLabel">🚀 Create in Jira</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script>
+// ── STATE ──────────────────────────────────────────────────────────────────
+let products=[], detectedFormat='', allIssues=[], activeFilters=new Set(['error','warning','ok']), accessToken=null, rawXmlText='';
+const JIRA_CLOUD='edrone.atlassian.net', JIRA_PROJECT='TS';
+const PAGE_SIZE=100;
+
+// ── HELPERS ────────────────────────────────────────────────────────────────
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const markFilled=el=>el.classList.toggle('filled',!!el.value.trim());
+function showToast(msg,type=''){const t=document.getElementById('toast');t.textContent=msg;t.className='toast'+(type?' '+type:'');t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3500)}
+
+// ── GOOGLE AUTH ────────────────────────────────────────────────────────────
+function handleGoogleAuth(){
+  if(accessToken){accessToken=null;document.getElementById('gAuthBtn').innerHTML=`<svg width="14" height="14" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.14 0 5.95 1.08 8.17 2.86l6.1-6.1C34.36 3.09 29.44 1 24 1 14.82 1 7.03 6.48 3.59 14.22l7.15 5.55C12.48 13.39 17.77 9.5 24 9.5z"/><path fill="#4285F4" d="M46.16 24.5c0-1.64-.15-3.22-.42-4.75H24v9h12.45c-.54 2.9-2.18 5.36-4.63 7.02l7.14 5.54C43.15 37.14 46.16 31.3 46.16 24.5z"/><path fill="#FBBC05" d="M10.74 28.23A14.6 14.6 0 0 1 9.5 24c0-1.47.25-2.9.71-4.23l-7.15-5.55A23.94 23.94 0 0 0 0 24c0 3.87.92 7.53 2.55 10.78l8.19-6.55z"/><path fill="#34A853" d="M24 47c5.44 0 10.01-1.8 13.35-4.9l-7.14-5.54C28.4 38.27 26.3 39 24 39c-6.23 0-11.52-3.89-13.26-9.27l-8.19 6.55C6.03 43.52 14.48 47 24 47z"/></svg>Connect to Google`;document.getElementById('gAuthStatus').textContent='Not connected';document.getElementById('gAuthStatus').className='gauth-status';document.getElementById('sheetsBtn').disabled=true;showToast('Logged out','');return;}
+  showGoogleModal();
+}
+function showGoogleModal(){
+  const m=document.createElement('div');m.className='modal-bg';
+  m.innerHTML=`<div class="modal"><h3>🔗 Connect to Google Sheets</h3><p style="font-size:.82rem;color:#475569;margin-bottom:12px;line-height:1.6">1. Open <a href="https://developers.google.com/oauthplayground" target="_blank" style="color:#e94560">OAuth 2.0 Playground</a><br>2. Scope: <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px">Google Sheets API v4 → spreadsheets</code><br>3. Authorize → Exchange → copy <strong>Access token</strong></p><input type="text" id="tokenInput" placeholder="ya29.xxxxx..." style="width:100%;padding:8px 11px;border:2px solid #e2e8f0;border-radius:7px;font-size:.82rem;outline:none;margin-bottom:10px"/><div style="display:flex;gap:7px"><button onclick="this.closest('.modal-bg').remove()" style="flex:1;padding:8px;border:2px solid #e2e8f0;border-radius:7px;background:white;cursor:pointer;font-weight:600;color:#64748b">Cancel</button><button onclick="confirmToken()" style="flex:1;padding:8px;border:none;border-radius:7px;background:#e94560;color:white;cursor:pointer;font-weight:700">Connect</button></div></div>`;
+  document.body.appendChild(m);
+}
+function confirmToken(){
+  const t=document.getElementById('tokenInput')?.value.trim();
+  if(!t){showToast('Wklej token','error');return;}
+  accessToken=t;
+  document.querySelector('.modal-bg')?.remove();
+  document.getElementById('gAuthBtn').textContent='✅ Google connected';
+  document.getElementById('gAuthStatus').textContent='Click to log out';
+  document.getElementById('gAuthStatus').className='gauth-status gauth-ok';
+  if(allIssues.length) document.getElementById('sheetsBtn').disabled=false;
+  showToast('Connected to Google ✅','success');
+}
+
+// ── TABS / FILE ────────────────────────────────────────────────────────────
+function switchTab(t){const tf=document.getElementById('tab-file');if(tf)tf.style.display='block';const tu=document.getElementById('tab-url');if(tu)tu.style.display='none';document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',true));}
+const dz=document.getElementById('dropZone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');handleFile(e.dataTransfer.files[0])});
+document.getElementById('fileInput').addEventListener('change',e=>handleFile(e.target.files[0]));
+
+function handleFile(f){
+  if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    const fi=document.getElementById('fileInfo');fi.style.display='block';fi.textContent=`✅ ${f.name} (${(f.size/1024).toFixed(1)} KB)`;
+    if(f.name.endsWith('.csv'))parseCSVFile(ev.target.result);else parseXML(ev.target.result);
+    document.getElementById('checkBtn').disabled=false;
+    // autofill feed URL
+    const urlField=document.getElementById('clientFeedUrl');
+    if(!urlField.value) urlField.value=f.name;
+  };
+  r.readAsText(f,'UTF-8');
+}
+function loadFromUrl(){
+  const url=document.getElementById('urlInput').value.trim();if(!url)return;
+  fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`).then(r=>r.json()).then(d=>{parseXML(d.contents);document.getElementById('checkBtn').disabled=false;}).catch(()=>showToast('Failed to fetch file','error'));
+}
+
+// ── PARSING ────────────────────────────────────────────────────────────────
+function parseCSVFile(txt){
+  const res=Papa.parse(txt,{header:true,skipEmptyLines:true,dynamicTypeing:false});
+  detectedFormat='CSV';
+  products=res.data.map((row,i)=>{
+    const k=Object.fromEntries(Object.entries(row).map(([k2,v])=>[k2.trim().toLowerCase().replace(/[^a-z_]/g,'_'),v]));
+    return{_idx:i+1,id:k.id||k.item_group_id||k.gtin||k.mpn||'',title:k.title||k.name||'',link:k.link||k.url||'',image_link:k.image_link||k.image||'',price:k.price||'',sale_price:k.sale_price||'',availability:k.availability||k.avail||'',product_type:k.product_type||k.google_product_category||k.category||'',quantity:k.quantity||k.stock||'',description:k.description||k.desc||'',brand:k.brand||'',_raw:''};
+  });
+}
+function parseXML(txt){
+  try{rawXmlText=txt;const p=new DOMParser();const doc=p.parseFromString(txt,'text/xml');if(doc.querySelector('parsererror')){showToast('XML parse error','error');return;}products=extractProducts(doc);}catch(e){showToast('Error: '+e.message,'error');}
+}
+function detectFormat(doc){if(doc.querySelector('channel item,rss item'))return 'GMC';if(doc.querySelector('feed entry'))return 'GMC';if(doc.querySelector('offers o,offer o'))return 'CENEO';if(doc.querySelector('products product'))return 'IAI';if(doc.querySelector('item'))return 'GMC';if(doc.querySelector('entry'))return 'GMC';return 'UNKNOWN';}
+function extractProducts(doc){
+  detectedFormat=detectFormat(doc);const prods=[];
+  if(detectedFormat==='GMC'){
+    const itemSelector = doc.querySelector('item') ? 'item' : 'entry';
+  doc.querySelectorAll(itemSelector).forEach((it,i)=>{
+      const getText=el=>{if(!el)return '';let t='';for(const n of el.childNodes){if(n.nodeType===3||n.nodeType===4)t+=n.nodeValue;}return t.trim();};
+      const ns=s=>{const g=it.getElementsByTagNameNS('http://base.google.com/ns/1.0',s);if(g.length)return getText(g[0]);const f=it.querySelector('g\\:'+s+','+s);return f?getText(f):''};
+      prods.push({_idx:i+1,id:ns('id'),item_group_id:ns('item_group_id'),gtin:ns('gtin'),mpn:ns('mpn'),title:it.querySelector('title')?.textContent.trim()||'',link:ns('link')||it.querySelector('link')?.textContent.trim()||'',image_link:ns('image_link'),price:ns('price'),sale_price:ns('sale_price'),availability:ns('availability'),product_type:ns('product_type')||ns('google_product_category'),quantity:ns('quantity'),description:ns('description')||it.querySelector('description')?.textContent.trim()||'',brand:ns('brand'),_raw:it.outerHTML});
+    });
+  }else if(detectedFormat==='CENEO'){
+    doc.querySelectorAll('o').forEach((it,i)=>{const attr=n=>{const a=it.querySelector(`a[name="${n}"]`);return a?a.textContent.trim():''};prods.push({_idx:i+1,id:it.getAttribute('id')||'',title:it.querySelector('n')?.textContent.trim()||'',link:it.getAttribute('url')||'',image_link:it.querySelector('imgs main')?.getAttribute('url')||'',price:it.getAttribute('price')||'',sale_price:attr('sale_price'),availability:it.getAttribute('avail')||'',product_type:it.querySelector('cat')?.textContent.trim()||'',quantity:it.getAttribute('stock')||'',description:it.querySelector('desc')?.textContent.trim()||'',brand:attr('Producent'),_raw:it.outerHTML});});
+  }else if(detectedFormat==='IAI'){
+    doc.querySelectorAll('product').forEach((it,i)=>{const price=it.querySelector('price');prods.push({_idx:i+1,id:it.getAttribute('id')||'',title:it.querySelector('name')?.textContent.trim()||'',link:it.querySelector('card')?.getAttribute('url')||'',image_link:it.querySelector('images large image')?.getAttribute('url')||'',price:price?(price.getAttribute('gross')||price.getAttribute('net')||''):'',availability:'',product_type:it.querySelector('category')?.getAttribute('name')||'',quantity:'',description:it.querySelector('short_desc,long_desc')?.textContent.trim()||'',brand:it.querySelector('producer')?.getAttribute('name')||'',_raw:it.outerHTML});});
+  }
+  return prods;
+}
+
+// ── VALIDATION ────────────────────────────────────────────────────────────
+function validate(prods,fmt){
+  const issues=[];
+  const miss=(field,label,desc)=>{const bad=prods.filter(p=>!p[field]||!p[field].toString().trim());issues.push({type:bad.length>0?'error':'ok',field,label,desc,count:bad.length,total:prods.length,products:bad})};
+  // Effective ID = first non-empty of id, item_group_id, gtin, mpn
+  prods.forEach(p=>{ if(!p._eid) p._eid = p.id||p.item_group_id||p.gtin||p.mpn||''; });
+  miss('_eid','Product ID (id / item_group_id / gtin / mpn)','A product must have at least one identifier (id, item_group_id, gtin or mpn).');
+  const ids=prods.map(p=>p._eid).filter(Boolean),dupIds=ids.filter((id,i)=>ids.indexOf(id)!==i),dupProds=prods.filter(p=>dupIds.includes(p._eid));
+  issues.push({type:dupProds.length>0?'error':'ok',field:'id_duplicate',label:'Duplicate IDs',desc:'Every product must have a unique ID.',count:dupProds.length,total:prods.length,products:dupProds});
+  miss('title','Title (title)','Product name is required.');
+  const longT=prods.filter(p=>p.title&&p.title.length>150);issues.push({type:longT.length>0?'warning':'ok',field:'title_length',label:'Title too long (>150 chars)',desc:'Titles over 150 characters may be truncated.',count:longT.length,total:prods.length,products:longT});
+  miss('link','Product link','The product page URL is required.');
+  const badLink=prods.filter(p=>p.link&&(!/^https?:\/\//.test(p.link)||/\s/.test(p.link)));issues.push({type:badLink.length>0?'error':'ok',field:'link_format',label:'Invalid product URL',desc:'Link must start with http/https and must not contain spaces.',count:badLink.length,total:prods.length,products:badLink});
+  miss('image_link','Image (image_link)','The main image URL is required.');
+  const badImg=prods.filter(p=>p.image_link&&(!/^https?:\/\//.test(p.image_link)||/\s/.test(p.image_link)));issues.push({type:badImg.length>0?'error':'ok',field:'image_link_format',label:'Invalid image URL',desc:'The image URL must not contain spaces.',count:badImg.length,total:prods.length,products:badImg});
+  miss('price','Price (price)','Product price is required.');
+  const badP=prods.filter(p=>{if(!p.price)return false;const c=parseFloat(p.price.toString().replace(/[, ]/g,'.').replace(/[^0-9.]/g,''));return isNaN(c)||c<=0});issues.push({type:badP.length>0?'error':'ok',field:'price_format',label:'Invalid price format',desc:'Price must be a number greater than 0.',count:badP.length,total:prods.length,products:badP});
+  miss('availability','Availability (availability)','The availability field is required.');
+  let va=[];if(fmt==='GMC')va=['in_stock','in stock','preorder','disponível','out_of_stock','out of stock','backorder','preorder'];else if(fmt==='CENEO')va=['1','3','7','14','90','110'];else if(fmt==='IAI')va=['in_stock','on_order','out_of_stock'];
+  if(va.length){const bA=prods.filter(p=>p.availability&&!va.includes(p.availability.toLowerCase().trim()));issues.push({type:bA.length>0?'error':'ok',field:'availability_value',label:'Invalid availability value',desc:`Dozwolone: ${va.join(', ')}.`,count:bA.length,total:prods.length,products:bA});}
+  const missC=prods.filter(p=>!p.product_type||!p.product_type.trim());issues.push({type:missC.length>0?'warning':'ok',field:'product_type',label:'Missing category (product_type)',desc:'Category is key for recommendations and Marketing Machine.',count:missC.length,total:prods.length,products:missC});
+  const badSP=prods.filter(p=>{if(!p.sale_price)return false;const c=parseFloat(p.sale_price.toString().replace(/[, ]/g,'.').replace(/[^0-9.]/g,''));return isNaN(c)||c<=0});issues.push({type:badSP.length>0?'warning':'ok',field:'sale_price_format',label:'Invalid sale_price format',desc:'Sale price must be a number greater than 0.',count:badSP.length,total:prods.length,products:badSP});
+  const spH=prods.filter(p=>{if(!p.sale_price||!p.price)return false;const s=parseFloat(p.sale_price.toString().replace(/[, ]/g,'.').replace(/[^0-9.]/g,'')),r=parseFloat(p.price.toString().replace(/[, ]/g,'.').replace(/[^0-9.]/g,''));return !isNaN(s)&&!isNaN(r)&&s>=r});issues.push({type:spH.length>0?'warning':'ok',field:'sale_price_logic',label:'sale_price >= regular price',desc:'Sale price should be lower than the regular price.',count:spH.length,total:prods.length,products:spH});
+  issues.push({type:'ok',field:'encoding',label:'UTF-8 encoding',desc:'File is UTF-8 encoded.',count:0,total:prods.length,products:[]});
+  const noQ=prods.filter(p=>!p.quantity||!p.quantity.toString().trim());issues.push({type:noQ.length===prods.length?'warning':'ok',field:'quantity',label:'Missing quantity field',desc:'Required for the Low stock products feature.',count:noQ.length,total:prods.length,products:[]});
+
+  if(fmt==='GMC'){
+    const hasIGI=prods.filter(p=>/item_group_id/i.test(p._raw||''));
+    const igCov=hasIGI.length/prods.length;
+    if(igCov>0&&igCov<0.95)issues.push({type:'warning',field:'item_group_id_coverage',label:'Inconsistent item_group_id',desc:`item_group_id present in only ${Math.round(igCov*100)}% of products. For matching, the "id" field is preferred.`,count:prods.length-hasIGI.length,total:prods.length,products:[]});
+    const sepPat=/^[a-zA-Z0-9]+([.\-_\/])[a-zA-Z0-9]+/;
+    const idsWithSep=prods.filter(p=>p.id&&sepPat.test(p.id.toString()));
+    if(idsWithSep.length>0&&idsWithSep.length/prods.length>0.5){const sample=idsWithSep[0].id.toString();const sepChar=(sample.match(/[.\-_\/]/)||['.'])[0];issues.push({type:'warning',field:'id_separator',label:'Product ID contains separator',desc:`Separator detected in ID (np. "${sample}", sep: "${sepChar}"). Skonfiguruj Feed Matching w panelu edrone (Admin > Feed > Feed matching).`,count:idsWithSep.length,total:prods.length,products:idsWithSep.slice(0,50)});}
+    const nestedCats=prods.filter(p=>p.product_type&&p.product_type.includes('>'));
+    if(nestedCats.length>0)issues.push({type:'ok',field:'category_nested',label:'Nested categories (separator ">")',desc:'edrone will use the last category from the chain. Check if it is detailed enough.',count:nestedCats.length,total:prods.length,products:nestedCats.slice(0,10)});
+  }
+  return issues;
+}
+
+// ── RUN CHECK ────────────────────────────────────────────────────────────
+function runCheck(){
+  if(!products.length){showToast('No products detected','error');return;}
+  document.getElementById('loader').classList.add('show');
+  document.getElementById('results').style.display='none';
+  setTimeout(()=>{
+    allIssues=validate(products,detectedFormat);
+    renderResults();
+    renderClientSummary();
+    document.getElementById('loader').classList.remove('show');
+    document.getElementById('results').style.display='block';
+    document.getElementById('results').scrollIntoView({behavior:'smooth'});
+    if(accessToken) document.getElementById('sheetsBtn').disabled=false;
+    fmUpdateFeedStatus();
+  },500);
+}
+
+function renderResults(){
+  const ec=allIssues.filter(i=>i.type==='error'&&i.count>0).length,wc=allIssues.filter(i=>i.type==='warning'&&i.count>0).length,oc=allIssues.filter(i=>i.type==='ok'||i.count===0).length;
+  document.getElementById('summaryGrid').innerHTML=`<div class="stat"><div class="num">${products.length}</div><div class="label">Products</div></div><div class="stat err"><div class="num">${ec}</div><div class="label">Critical errors</div></div><div class="stat warn"><div class="num">${wc}</div><div class="label">Warnings</div></div><div class="stat ok"><div class="num">${oc}</div><div class="label">Rules OK</div></div>`;
+  document.getElementById('formatInfo').textContent=`Standard: ${detectedFormat}`;
+  renderIssues();
+}
+
+// ── CLIENT SUMMARY MESSAGE ────────────────────────────────────────────────
+function renderClientSummary(){
+  const name=document.getElementById('clientName').value.trim()||'';
+  const trackerId=document.getElementById('clientTrackerId').value.trim();
+  const feedUrl=document.getElementById('clientFeedUrl').value.trim();
+  const errors=allIssues.filter(i=>i.type==='error'&&i.count>0);
+  const warnings=allIssues.filter(i=>i.type==='warning'&&i.count>0);
+  const date=new Date().toLocaleDateString('en-GB');
+
+  function buildMsg(lang){
+    const isEN = lang==='en';
+    const isPT = lang==='pt';
+
+    // Polish translations for validation labels and descriptions
+    const labelPL = {
+      '_eid': 'ID produktu (id / item_group_id / gtin / mpn)',
+      'id_duplicate': 'Duplikaty ID',
+      'title': 'Tytuł (title)',
+      'title_length': 'Zbyt długi tytuł (>150 znaków)',
+      'link': 'Link do produktu',
+      'link_format': 'Nieprawidłowy URL produktu',
+      'image_link': 'Zdjęcie (image_link)',
+      'image_link_format': 'Nieprawidłowy URL zdjęcia',
+      'price': 'Cena (price)',
+      'price_format': 'Nieprawidłowy format ceny',
+      'availability': 'Dostępność (availability)',
+      'availability_value': 'Nieprawidłowa wartość dostępności',
+      'product_type': 'Brak kategorii (product_type)',
+      'sale_price_format': 'Nieprawidłowy format sale_price',
+      'sale_price_logic': 'sale_price >= cena regularna',
+      'encoding': 'Kodowanie UTF-8',
+      'quantity': 'Brak pola quantity',
+      'item_group_id_coverage': 'Niekonsekwentny item_group_id',
+      'id_separator': 'Separator wykryty w ID',
+      'category_nested': 'Kategorie zagnieżdżone (separator ">")',
+    };
+    const descPL = {
+      '_eid': 'Produkt musi mieć co najmniej jeden identyfikator (id, item_group_id, gtin lub mpn).',
+      'id_duplicate': 'Każdy produkt musi mieć unikalne ID.',
+      'title': 'Nazwa produktu jest wymagana.',
+      'title_length': 'Tytuł powyżej 150 znaków może być obcięty.',
+      'link': 'URL strony produktu jest wymagany.',
+      'link_format': 'Link musi zaczynać się od http/https i nie może zawierać spacji.',
+      'image_link': 'URL głównego zdjęcia jest wymagany.',
+      'image_link_format': 'Link do zdjęcia nie może zawierać spacji.',
+      'price': 'Cena produktu jest wymagana.',
+      'price_format': 'Cena musi być liczbą większą od 0.',
+      'availability': 'Pole dostępności jest wymagane.',
+      'availability_value': 'Wartość dostępności jest nieprawidłowa.',
+      'product_type': 'Kategoria jest kluczowa dla rekomendacji i Marketing Machine.',
+      'sale_price_format': 'Cena promocyjna musi być liczbą większą od 0.',
+      'sale_price_logic': 'Cena promocyjna powinna być niższa od ceny regularnej.',
+      'encoding': 'Plik jest w kodowaniu UTF-8.',
+      'quantity': 'Wymagane dla funkcji Low stock products.',
+      'item_group_id_coverage': 'item_group_id nie jest obecny we wszystkich produktach.',
+      'id_separator': 'Wykryto separator w ID — skonfiguruj Feed Matching w panelu edrone.',
+      'category_nested': 'edrone pobierze ostatnią kategorię z łańcucha.',
+    };
+
+    const labelPT = {
+      '_eid': 'ID do produto (id / item_group_id / gtin / mpn)',
+      'id_duplicate': 'IDs duplicados',
+      'title': 'Título (title)',
+      'title_length': 'Título muito longo (>150 caracteres)',
+      'link': 'Link do produto',
+      'link_format': 'URL do produto inválida',
+      'image_link': 'Imagem (image_link)',
+      'image_link_format': 'URL da imagem inválida',
+      'price': 'Preço (price)',
+      'price_format': 'Formato de preço inválido',
+      'availability': 'Disponibilidade (availability)',
+      'availability_value': 'Valor de disponibilidade inválido',
+      'product_type': 'Categoria ausente (product_type)',
+      'sale_price_format': 'Formato de sale_price inválido',
+      'sale_price_logic': 'sale_price >= preço regular',
+      'encoding': 'Codificação UTF-8',
+      'quantity': 'Campo quantity ausente',
+      'item_group_id_coverage': 'item_group_id inconsistente',
+      'id_separator': 'Separador detectado no ID',
+      'category_nested': 'Categorias aninhadas (separador ">")',
+    };
+    const descPT = {
+      '_eid': 'O produto deve ter pelo menos um identificador (id, item_group_id, gtin ou mpn).',
+      'id_duplicate': 'Cada produto deve ter um ID único.',
+      'title': 'O nome do produto é obrigatório.',
+      'title_length': 'Títulos com mais de 150 caracteres podem ser cortados.',
+      'link': 'A URL da página do produto é obrigatória.',
+      'link_format': 'O link deve começar com http/https e não pode conter espaços.',
+      'image_link': 'A URL da imagem principal é obrigatória.',
+      'image_link_format': 'A URL da imagem não pode conter espaços.',
+      'price': 'O preço do produto é obrigatório.',
+      'price_format': 'O preço deve ser um número maior que 0.',
+      'availability': 'O campo de disponibilidade é obrigatório.',
+      'availability_value': 'O valor de disponibilidade é inválido.',
+      'product_type': 'A categoria é essencial para as recomendações e o Marketing Machine.',
+      'sale_price_format': 'O preço promocional deve ser um número maior que 0.',
+      'sale_price_logic': 'O preço promocional deve ser menor que o preço regular.',
+      'encoding': 'O arquivo está codificado em UTF-8.',
+      'quantity': 'Necessário para o recurso de produtos com estoque baixo.',
+      'item_group_id_coverage': 'item_group_id não está presente em todos os produtos.',
+      'id_separator': 'Separador detectado no ID — configure o Feed Matching no painel do edrone.',
+      'category_nested': 'O edrone usará a última categoria da cadeia.',
+    };
+
+    const hi = isEN ? 'Hi,' : isPT ? 'Olá,' : 'Cześć,';
+    const intro = isEN
+      ? `We've analysed the product feed${feedUrl?' ('+feedUrl+')':''} and wanted to share the verification results (${date}).`
+      : isPT
+      ? `Analisamos o feed de produtos${feedUrl?' ('+feedUrl+')':''} e gostaríamos de compartilhar os resultados da verificação (${date}).`
+      : `Przeanalizowaliśmy feed produktowy${feedUrl?' ('+feedUrl+')':''} i chcieliśmy przekazać wyniki weryfikacji (${date}).`;
+
+    let msg = `${hi}
+
+${intro}
+
+`;
+
+    if(errors.length===0&&warnings.length===0){
+      msg += isEN
+        ? `✅ Good news — the feed is correct! All required fields are filled in and meet edrone platform requirements.
+`
+        : `✅ Dobra wiadomość — feed jest poprawny! Wszystkie wymagane pola są wypełnione i spełniają wymagania platformy edrone.
+`;
+    } else {
+      if(errors.length>0){
+        msg += isEN
+          ? `During verification we found errors that need to be fixed:
+
+❌ CRITICAL ERRORS:
+`
+          : `Podczas weryfikacji wykryliśmy błędy, które wymagają poprawienia:
+
+❌ BŁĘDY KRYTYCZNE:
+`;
+        errors.forEach(i=>{
+          const lbl = isEN ? i.label : isPT ? (labelPT[i.field] || i.label) : (labelPL[i.field] || i.label);
+          const dsc = isEN ? i.desc : isPT ? (descPT[i.field] || i.desc) : (descPL[i.field] || i.desc);
+          const ofTxt = isEN ? `of` : isPT ? `de` : `z`;
+          const prodTxt = isEN ? `products` : isPT ? `produtos` : `produktów`;
+          msg+=`
+• ${lbl} — ${i.count} ${ofTxt} ${i.total} ${prodTxt}
+  ${dsc}
+`;
+          if(i.products&&i.products.length>0){
+            const sampleLabel = isEN ? 'Sample products:' : isPT ? 'Produtos de exemplo:' : 'Przykładowe produkty:';
+            const moreTxt = isEN ? `(and ${i.products.length-3} more...)` : isPT ? `(e mais ${i.products.length-3}...)` : `(i ${i.products.length-3} więcej...)`;
+            const sample=i.products.slice(0,3).map(p=>`  - ID: ${p._eid||p.id||'-'} | ${(p.title||'-').substring(0,40)}`).join('\n');
+            msg+=`  ${sampleLabel}\n${sample}${i.products.length>3?'\n  '+moreTxt:''}\n`;
+          }
+        });
+      }
+      if(warnings.length>0){
+        msg += isEN
+          ? `
+⚠️ WARNINGS:
+`
+          : `
+⚠️ OSTRZEŻENIA:
+`;
+        warnings.forEach(i=>{
+          const lbl = isEN ? i.label : isPT ? (labelPT[i.field] || i.label) : (labelPL[i.field] || i.label);
+          const dsc = isEN ? i.desc : isPT ? (descPT[i.field] || i.desc) : (descPL[i.field] || i.desc);
+          const ofTxt = isEN ? `of` : isPT ? `de` : `z`;
+          const prodTxt = isEN ? `products` : isPT ? `produtos` : `produktów`;
+          msg+=`
+• ${lbl} — ${i.count} ${ofTxt} ${i.total} ${prodTxt}
+  ${dsc}
+`;
+        });
+      }
+      msg += isEN
+        ? `
+Please apply the fixes and re-submit the feed.
+We are here to help! 😊
+`
+        : `
+Prosimy o wprowadzenie poprawek i ponowne przesłanie feeda.
+Jesteśmy do dyspozycji! 😊
+`;
+    }
+    if(trackerId) msg+=`
+[Tracker ID: ${trackerId}]`;
+    return msg;
+  }
+
+  const en = buildMsg('en');
+  const pl = buildMsg('pl');
+  const pt = buildMsg('pt');
+  document.getElementById('clientSummaryMsgEN').textContent = en;
+  document.getElementById('clientSummaryMsgPL').textContent = pl;
+  document.getElementById('clientSummaryMsgPT').textContent = pt;
+}
+
+function copyMsg(lang){
+  const id = lang==='EN' ? 'clientSummaryMsgEN' : lang==='PL' ? 'clientSummaryMsgPL' : 'clientSummaryMsgPT';
+  const msg = document.getElementById(id).textContent;
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(msg).then(()=>showToast('Copied ✅','success')).catch(()=>fallbackCopy(msg));
+  } else {
+    fallbackCopy(msg);
+  }
+}
+function fallbackCopy(text){
+  const ta=document.createElement('textarea');
+  ta.value=text;
+  ta.style.cssText='position:fixed;top:0;left:0;opacity:0;';
+  document.body.appendChild(ta);
+  ta.focus();ta.select();
+  try{document.execCommand('copy');showToast('Copied ✅','success');}
+  catch(e){showToast('Copy error — please copy manually','error');}
+  document.body.removeChild(ta);
+}
+
+// ── ISSUES LIST ────────────────────────────────────────────────────────────
+function renderIssues(){
+  const s=document.getElementById('searchInput').value.toLowerCase(),list=document.getElementById('issuesList');list.innerHTML='';
+  const vis=allIssues.filter(i=>{const t=i.type==='ok'||i.count===0?'ok':i.type;if(!activeFilters.has(t))return false;if(s&&!i.label.toLowerCase().includes(s)&&!i.field.toLowerCase().includes(s))return false;return true});
+  if(!vis.length){list.innerHTML='<p style="color:#94a3b8;text-align:center;padding:20px">No results.</p>';return;}
+  vis.forEach((issue,idx)=>{
+    const t=issue.type==='ok'||issue.count===0?'ok':issue.type,bl=t==='error'?'ERROR':t==='warning'?'WARNING':'OK';
+    const div=document.createElement('div');div.className='issue-item';
+    div.innerHTML=`<div class="issue-header" onclick="toggleIssue(${idx})"><span class="badge ${t}">${bl}</span><span class="issue-title">${issue.label}</span>${issue.count>0?`<span class="issue-count">${issue.count} prod.</span>`:''}<span class="arrow" id="arr-${idx}" style="margin-left:auto;color:#94a3b8;transition:transform .2s">▼</span></div><div class="issue-body" id="body-${idx}"><p class="issue-desc">${issue.desc}</p>${issue.products&&issue.products.length>0?renderTable(issue,0):'<p style="font-size:.78rem;color:#10b981">✅ Wszystkie produkty poprawne.</p>'}</div>`;
+    list.appendChild(div);
+  });
+}
+
+function renderTable(issue,page=0){
+  const all=issue.products,total=all.length,start=page*PAGE_SIZE,end=Math.min(start+PAGE_SIZE,total),slice=all.slice(start,end),pages=Math.ceil(total/PAGE_SIZE);
+  const rows=slice.map(p=>{const val=p[issue.field];const d=val?`<span class="val-bad">${esc(val.toString().substring(0,80))}</span>`:`<span class="val-miss">(brak)</span>`;return `<tr><td>#${p._idx}</td><td>${esc((p.id||'').toString().substring(0,30))}</td><td>${esc((p.title||'').substring(0,50))}</td><td>${d}</td></tr>`}).join('');
+  const pagId=`pag-${issue.field.replace(/[^a-z0-9]/g,'_')}`;
+  const pag=pages>1?`<div id="${pagId}" style="display:flex;align-items:center;gap:5px;margin-top:7px;font-size:.76rem;color:#475569;flex-wrap:wrap"><button onclick="changePage('${issue.field}',${page-1})" ${page===0?'disabled':''} style="padding:2px 8px;border:1.5px solid #e2e8f0;border-radius:5px;background:white;cursor:pointer;font-weight:700">‹</button><span>Str. <b>${page+1}</b>/${pages} — prod. ${start+1}–${end} z <b>${total}</b></span><button onclick="changePage('${issue.field}',${page+1})" ${page>=pages-1?'disabled':''} style="padding:2px 8px;border:1.5px solid #e2e8f0;border-radius:5px;background:white;cursor:pointer;font-weight:700">›</button><span style="color:#94a3b8">(CSV zawiera wszystkie ${total})</span></div>`:
+  `<div style="font-size:.73rem;color:#94a3b8;margin-top:5px">Total: ${total} products</div>`;
+  return `<table class="products-table"><thead><tr><th>#</th><th>ID</th><th>Title</th><th>Value</th></tr></thead><tbody>${rows}</tbody></table>${pag}`;
+}
+
+function changePage(field,page){
+  const issue=allIssues.find(i=>i.field===field);if(!issue)return;
+  document.querySelectorAll('.issue-body.open').forEach(body=>{
+    if(body.querySelector('.issue-title')||true){
+      const items=document.querySelectorAll('.issue-item');
+      items.forEach(item=>{
+        if(item.querySelector('.issue-title')?.textContent===issue.label){
+          const b=item.querySelector('.issue-body');
+          const tbl=b?.querySelector('table');
+          if(tbl){const tmp=document.createElement('div');tmp.innerHTML=renderTable(issue,page);tbl.replaceWith(tmp.firstChild);const oldPag=b.querySelector('[id^="pag-"]');if(oldPag)oldPag.remove();const newPag=tmp.querySelector('[id^="pag-"]');if(newPag)b.appendChild(newPag);}
+        }
+      });
+    }
+  });
+}
+
+function toggleIssue(idx){const b=document.getElementById('body-'+idx),a=document.getElementById('arr-'+idx);b.classList.toggle('open');if(a)a.style.transform=b.classList.contains('open')?'rotate(180deg)':'';}
+function toggleFilter(f){if(activeFilters.has(f))activeFilters.delete(f);else activeFilters.add(f);document.getElementById('f-'+f).classList.toggle('active',activeFilters.has(f));renderIssues();}
+
+function resetAll(){products=[];detectedFormat='';allIssues=[];document.getElementById('fileInfo').style.display='none';document.getElementById('fileInput').value='';document.getElementById('results').style.display='none';document.getElementById('checkBtn').disabled=true;document.getElementById('sheetsBtn').disabled=true;}
+
+// ── JIRA ──────────────────────────────────────────────────────────────────
+function openJiraModal(){
+  if(!allIssues.length){showToast('Check the feed first','error');return;}
+  const clientName=document.getElementById('clientName').value.trim()||'Klient';
+  const trackerId=document.getElementById('clientTrackerId').value.trim();
+  const errors=allIssues.filter(i=>i.type==='error'&&i.count>0);
+  const warnings=allIssues.filter(i=>i.type==='warning'&&i.count>0);
+  const date=new Date().toLocaleDateString('pl-PL');
+
+  document.getElementById('jiraSummary').value=`[Feed] ${clientName}${trackerId?' (ID: '+trackerId+')':''} — product feed errors`;
+
+  let desc=`*Raport walidacji feeda produktowego*\n`;
+  desc+=`*Klient:* ${clientName}${trackerId?' | Tracker ID: '+trackerId:''}\n`;
+  desc+=`*Data:* ${date} | *Standard:* ${detectedFormat} | *Products:* ${products.length}\n\n`;
+
+  if(errors.length>0){
+    desc+=`*CRITICAL ERRORS (${errors.length}):*\n`;
+    errors.forEach(i=>{
+      desc+=`• *${i.label}* — ${i.count}/${i.total} prod.\n  ${i.desc}\n`;
+      if(i.products?.length>0){
+        const samples=i.products.slice(0,5).map(p=>`ID: ${p.id||'brak'} | ${(p.title||'').substring(0,40)}`).join('\n  ');
+        desc+=`  Examples:\n  ${samples}\n`;
+      }
+    });
+  }
+  if(warnings.length>0){
+    desc+=`\n*WARNINGS (${warnings.length}):*\n`;
+    warnings.forEach(i=>{desc+=`• *${i.label}* — ${i.count}/${i.total} prod.\n  ${i.desc}\n`;});
+  }
+
+  document.getElementById('jiraDesc').value=desc;
+  const prev=errors.concat(warnings).slice(0,5).map(i=>`${i.type==='error'?'❌':'⚠️'} ${i.label}: ${i.count} products`).join('\n');
+  document.getElementById('jiraPreview').textContent=prev||'No errors to report.';
+  document.getElementById('jiraModal').style.display='flex';
+}
+
+function closeJiraModal(){document.getElementById('jiraModal').style.display='none';}
+
+function submitJiraTask(){
+  const summary=document.getElementById('jiraSummary').value.trim();
+  const issueType=document.getElementById('jiraIssueTypee').value;
+  const description=document.getElementById('jiraDesc').value.trim();
+  if(!summary){showToast('Enter task title','error');return;}
+  closeJiraModal();
+  // Pass to Claude with Jira connector
+  const prompt=`Please create a Jira task in the TS (Technical Support) project on edrone.atlassian.net with the following details:\n\nType: ${issueType}\nTitle: ${summary}\n\nDescription:\n${description}`;
+  sendPrompt(prompt);
+}
+
+// ── EXPORT CSV ────────────────────────────────────────────────────────────
+function exportCSV(){
+  const sep=',',q=v=>`"${String(v??'').replace(/"/g,'""')}"`,row=arr=>arr.map(q).join(sep),lines=[];
+  lines.push(row(['edrone Feed Checker – Validation Report']));
+  lines.push(row(['Data:',new Date().toLocaleDateString('pl-PL'),'Standard:',detectedFormat,'Products:',products.length]));
+  const client=document.getElementById('clientName').value.trim();
+  const tid=document.getElementById('clientTrackerId').value.trim();
+  if(client||tid) lines.push(row(['Klient:',client,'Tracker ID:',tid]));
+  lines.push('');
+  lines.push(row(['=== RULES SUMMARY ===']));
+  lines.push(row(['Status','Field','Description','Errors','Total']));
+  allIssues.forEach(i=>lines.push(row([(i.type==='ok'||i.count===0)?'✅ OK':i.type==='error'?'❌ BŁĄD':'⚠️ OSTRZEŻENIE',i.field,i.desc,i.count,i.total])));
+  lines.push('');
+  lines.push(row(['=== DETAILED ERRORS PER RULE ===']));
+  allIssues.filter(i=>i.count>0&&i.products?.length>0).forEach(issue=>{
+    const sl=issue.type==='error'?'❌ BŁĄD':'⚠️ OSTRZEŻENIE';
+    lines.push('');lines.push(row([`${sl} – ${issue.label}`]));lines.push(row(['Description:',issue.desc]));
+    lines.push(row(['No.','# in feed','Product ID','Title','Field','Value (incorrect)']));
+    issue.products.forEach((p,idx)=>{const val=p[issue.field];const d=(val!==undefined&&val!==null&&val!=='')? val.toString().substring(0,300):'(brak)';lines.push(row([idx+1,p._idx,p._eid||p.id||'',p.title||'',issue.field,d]));});
+  });
+  lines.push('');lines.push(row(['=== ERRORS PER PRODUCT ===']));
+  lines.push(row(['# in feed','Product ID','Title','Field','Value','Type','Description']));
+  const pe={};allIssues.filter(i=>i.count>0&&i.products?.length>0).forEach(issue=>{issue.products.forEach(p=>{if(!pe[p._idx])pe[p._idx]={p,errors:[]};const val=p[issue.field];pe[p._idx].errors.push({field:issue.field,val:(val!==undefined&&val!==null&&val!=='')?val.toString().substring(0,300):'(brak)',type:issue.type==='error'?'❌ BŁĄD':'⚠️ OSTRZEŻENIE',desc:issue.desc});});});
+  Object.values(pe).sort((a,b)=>a.p._idx-b.p._idx).forEach(({p,errors})=>{errors.forEach((e,i)=>lines.push(row([i===0?p._idx:'',i===0?(p._eid||p.id||''):'',i===0?(p.title||''):'',e.field,e.val,e.type,e.desc])));lines.push(row(['---','---','---','---','---','---','---']));});
+  const csv=lines.join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download=`edrone_feed_${new Date().toISOString().slice(0,10)}.csv`;document.body.appendChild(a);a.click();document.body.removeChild(a);showToast('CSV downloaded ✅','success');
+}
+
+// ── GOOGLE SHEETS ─────────────────────────────────────────────────────────
+async function exportToSheets(){
+  if(!accessToken){showToast('Connect to Google first','error');return;}
+  const btn=document.getElementById('sheetsBtn'),ld=document.getElementById('gsLoading');
+  btn.disabled=true;ld.style.display='flex';
+  const client=document.getElementById('clientName').value.trim();
+  const tid=document.getElementById('clientTrackerId').value.trim();
+  const now=new Date().toLocaleDateString('pl-PL');
+  const title=`edrone Feed ${client?'– '+client:''} ${now}`;
+  const summaryRows=[['edrone Feed Checker – Report'],['Date:',now,'Standard:',detectedFormat,'Products:',products.length],['Klient:',client,'Tracker ID:',tid],[''],['PODSUMOWANIE REGUŁ'],['Status','Field','Description','Errors','Total'],...allIssues.map(i=>[(i.type==='ok'||i.count===0)?'✅ OK':i.type==='error'?'❌ BŁĄD':'⚠️ OSTRZEŻENIE',i.field,i.desc,i.count,i.total])];
+  const errorRows=[['#','Product ID','Title','Field','Value','Type']];
+  allIssues.forEach(issue=>{if(!issue.count)return;issue.products.forEach(p=>{errorRows.push([p._idx,p.id||'',p.title||'',issue.field,(p[issue.field]||'(brak)').toString().substring(0,200),issue.type==='error'?'ERROR':'WARNING']);});});
+  try{
+    const cr=await fetch('https://sheets.googleapis.com/v4/spreadsheets',{method:'POST',headers:{'Authorization':'Bearer '+accessToken,'Content-Typee':'application/json'},body:JSON.stringify({properties:{title},sheets:[{properties:{title:'Podsumowanie',sheetId:0}},{properties:{title:'Product errors',sheetId:1}}]})});
+    const sheet=await cr.json();if(!sheet.spreadsheetId)throw new Error(sheet.error?.message||'Error');
+    const sid=sheet.spreadsheetId;
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/Podsumowanie!A1:F${summaryRows.length}?valueInputOption=USER_ENTERED`,{method:'PUT',headers:{'Authorization':'Bearer '+accessToken,'Content-Typee':'application/json'},body:JSON.stringify({values:summaryRows})});
+    if(errorRows.length>1)await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/Product errors!A1:F${errorRows.length}?valueInputOption=USER_ENTERED`,{method:'PUT',headers:{'Authorization':'Bearer '+accessToken,'Content-Typee':'application/json'},body:JSON.stringify({values:errorRows})});
+    ld.style.display='none';btn.disabled=false;
+    showToast('Arkusz utworzony! Otwieranie...','success');
+    setTimeout(()=>window.open(`https://docs.google.com/spreadsheets/d/${sid}`,'_blank'),800);
+  }catch(e){ld.style.display='none';btn.disabled=false;showToast('Error: '+e.message,'error');}
+}
+
+
+// ── FEED MATCHING ANALYZER ────────────────────────────────────────────────
+
+function fmLoadExample(){
+  const ta = document.getElementById('fmJsonInput');
+  if(ta.value.trim()){
+    if(!confirm('Textarea already has content. Overwrite with example?')) return;
+  }
+  ta.value = JSON.stringify({
+    "type": "productViewTrace",
+    "raw": {
+      "request": {
+        "app_id": "abc123",
+        "product_ids": "1102",
+        "product_skus": "",
+        "product_titles": "Sample product",
+        "action_type": "product_view",
+        "platform": "magento"
+      }
+    },
+    "status": "OK"
+  }, null, 2);
+  showToast('Sample event inserted (edrone format)','success');
+}
+
+function fmUpdateFeedStatus(){
+  const el = document.getElementById('fmFeedStatus');
+  if(!el) return;
+  if(products.length > 0){
+    el.innerHTML = `<span style="color:#10b981;font-weight:700">✅ Feed loaded</span> — ${products.length} products, standard: <strong>${detectedFormat}</strong>`;
+    if(detectedFormat !== 'GMC'){
+      el.innerHTML += ` <span style="color:#ef4444;font-weight:700;margin-left:8px">⚠️ Note: feed is not in GMC standard — matching is not possible!</span>`;
+    }
+  } else {
+    el.innerHTML = `<span style="color:#f59e0b;font-weight:700">⚠️ Feed not loaded</span> — upload a feed in the section above to get the full matching analysis.`;
+  }
+}
+
+// Call on page load and after feed parse
+fmUpdateFeedStatus();
+
+function fmParseEventJson(){
+  const raw = document.getElementById('fmJsonInput').value.trim();
+  if(!raw){ showToast('Wklej Event JSON','error'); return null; }
+  try{
+    let parsed = JSON.parse(raw);
+    if(Array.isArray(parsed)) parsed = parsed[0];
+    return parsed;
+  } catch(e){
+    showToast('Blad parsowania JSON: '+e.message,'error');
+    return null;
+  }
+}
+
+function fmExtractIds(eventObj){
+  // Real edrone event stores data in raw.request — support both root-level and nested
+  const req = (eventObj && eventObj.raw && eventObj.raw.request) ? eventObj.raw.request : {};
+
+  function toArr(val){
+    if(!val && val !== 0) return [];
+    if(Array.isArray(val)) return val.map(String).filter(Boolean);
+    if(typeof val === 'string' && val.includes('~')) return val.split('~').map(s=>s.trim()).filter(Boolean);
+    return [String(val)].filter(Boolean);
+  }
+
+  // product_ids: check root first, then raw.request
+  const pids = toArr(
+    eventObj.product_ids !== undefined ? eventObj.product_ids :
+    eventObj.productIds !== undefined ? eventObj.productIds :
+    req.product_ids !== undefined ? req.product_ids :
+    req.productIds !== undefined ? req.productIds : null
+  );
+
+  // product_skus: check root first, then raw.request
+  const skus = toArr(
+    eventObj.product_skus !== undefined ? eventObj.product_skus :
+    eventObj.productSkus !== undefined ? eventObj.productSkus :
+    req.product_skus !== undefined ? req.product_skus :
+    req.productSkus !== undefined ? req.productSkus : null
+  );
+
+  return { pids, skus };
+}
+
+// Find feed match — search directly in raw XML text (no DOM, no outerHTML issues)
+function fmFindFeedMatch(idValue){
+  if(!idValue) return null;
+  const needle = String(idValue).trim();
+  const seps = ['-','_','.','/',':'];
+  const tagFields = [
+    {tag:'g:id',            field:'id'},
+    {tag:'g:item_group_id', field:'item_group_id'},
+    {tag:'g:mpn',           field:'mpn'},
+    {tag:'g:gtin',          field:'gtin'},
+  ];
+
+  // Extract all values for a given tag from raw XML text
+  function extractAllValues(xmlText, tag){
+      const vals = [];
+      // Use split approach — no regex escaping issues with colons
+      const openTag = '<' + tag + '>';
+      const closeTag = '</' + tag + '>';
+      let pos = 0;
+      while(true){
+        const start = xmlText.indexOf(openTag, pos);
+        if(start === -1) break;
+        const end = xmlText.indexOf(closeTag, start);
+        if(end === -1) break;
+        let val = xmlText.substring(start + openTag.length, end);
+        // Strip CDATA wrappers
+        val = val.replace(/<!\[CDATA\[/gi, '').replace(/\]\]>/g, '');
+        // Strip XML comments
+        val = val.replace(/<!--[\s\S]*?-->/g, '').trim();
+        if(val) vals.push(val);
+        pos = end + closeTag.length;
+      }
+      return vals;
+    }
+
+  const xmlSource = rawXmlText || '';
+  if(!xmlSource) return null;
+
+  for(const {tag, field} of tagFields){
+    const feedVals = extractAllValues(xmlSource, tag);
+    for(const feedVal of feedVals){
+      if(!feedVal) continue;
+      // Exact
+      if(feedVal === needle) return {field, feedVal, eventVal:needle, matchType:'exact', separator:null, position:null};
+      // Feed has extra: feedVal="1234-PP", needle="1234"
+      for(const sep of seps){
+        if(feedVal.includes(sep)){
+          const parts = feedVal.split(sep);
+          if(parts[0] === needle) return {field, feedVal, eventVal:needle, matchType:'feed_has_suffix', separator:sep, position:1};
+          if(parts[parts.length-1] === needle) return {field, feedVal, eventVal:needle, matchType:'feed_has_suffix', separator:sep, position:2};
+        }
+        // Event has extra: needle="1234-PP", feedVal="1234"
+        if(needle.includes(sep)){
+          const parts = needle.split(sep);
+          if(parts[0] === feedVal) return {field, feedVal, eventVal:needle, matchType:'event_has_suffix', separator:sep, position:1};
+          if(parts[parts.length-1] === feedVal) return {field, feedVal, eventVal:needle, matchType:'event_has_suffix', separator:sep, position:2};
+        }
+      }
+    }
+  }
+  return null;
+}
+
+
+// ── CATEGORY ANALYSIS ─────────────────────────────────────────────────────
+function fmAnalyzeCategories(){
+  const xmlSource = rawXmlText || '';
+  if(!xmlSource) return {param: 'product_type', note: 'No feed — defaulting to product_type', ptSamples: [], gpcSamples: [], ptScore:0, gpcScore:0, bothPoor: false};
+
+  function getSamples(tag, count=3){
+    const samples = [];
+    const openTag = '<' + tag + '>';
+    const closeTag = '</' + tag + '>';
+    let pos = 0;
+    while(samples.length < count){
+      const start = xmlSource.indexOf(openTag, pos);
+      if(start === -1) break;
+      const end = xmlSource.indexOf(closeTag, start);
+      if(end === -1) break;
+      let val = xmlSource.substring(start + openTag.length, end)
+        .replace(/<!\[CDATA\[/gi,'').replace(/\]\]>/g,'')
+        .replace(/<!--[\s\S]*?-->/g,'').trim();
+      if(val && !samples.includes(val)) samples.push(val);
+      pos = end + closeTag.length;
+    }
+    return samples;
+  }
+
+  function scoreValue(val){
+    if(!val) return 0;
+    if(/^\d+$/.test(val.trim())) return 1;
+    if(/root|strona g[łl]/i.test(val)) return 2;
+    if(!val.includes('>') && !val.includes('/') && val.split(' ').length < 3) return 3;
+    if(val.includes('>') || val.includes('/')) return 5;
+    return 4;
+  }
+
+  const ptSamples = getSamples('g:product_type');
+  const gpcSamples = getSamples('g:google_product_category');
+
+  const ptScore = ptSamples.length ? Math.max(...ptSamples.map(scoreValue)) : 0;
+  const gpcScore = gpcSamples.length ? Math.max(...gpcSamples.map(scoreValue)) : 0;
+
+  // Both poor = max score <= 3 (numbers, single words, colors etc.)
+  const bothPoor = ptSamples.length > 0 && gpcSamples.length > 0 && ptScore <= 3 && gpcScore <= 3;
+  // One poor, one missing
+  const onlyOnePoor = (ptSamples.length > 0 && !gpcSamples.length && ptScore <= 3) ||
+                      (gpcSamples.length > 0 && !ptSamples.length && gpcScore <= 3);
+  const anyPoor = bothPoor || onlyOnePoor;
+
+  let param, reasoning;
+
+  if(!ptSamples.length && !gpcSamples.length){
+    param = 'product_type';
+    reasoning = 'Neither parameter was found in the feed. Enter the category parameter name manually.';
+  } else if(!ptSamples.length){
+    param = 'google_product_category';
+    reasoning = gpcScore <= 3
+      ? 'The <code>product_type</code> parameter is not present in the feed. The <code>google_product_category</code> parameter contains values that do not look like categories.'
+      : 'The <code>product_type</code> parameter is not present in the feed. Using <code>google_product_category</code>.';
+  } else if(!gpcSamples.length){
+    param = 'product_type';
+    reasoning = ptScore <= 3
+      ? 'The <code>google_product_category</code> parameter is not present in the feed. The <code>product_type</code> parameter contains values that do not look like categories.'
+      : 'The <code>google_product_category</code> parameter is not present in the feed. Using <code>product_type</code>.';
+  } else if(bothPoor){
+    // Both poor — pick the better of two bad options
+    param = ptScore >= gpcScore ? 'product_type' : 'google_product_category';
+    reasoning = 'Neither parameter contains a proper category tree.';
+  } else if(ptScore >= gpcScore){
+    param = 'product_type';
+    if(gpcScore <= 2){
+      reasoning = 'The <code>google_product_category</code> parameter contains values that do not look like categories (numbers, "Root", "Home page"). We recommend <code>product_type</code> which contains the proper category path.';
+    } else {
+      reasoning = 'Both parameters contain categories, but <code>product_type</code> appears to have a more detailed shop category path.';
+    }
+  } else {
+    param = 'google_product_category';
+    if(ptScore <= 2){
+      reasoning = 'The <code>product_type</code> parameter contains values that do not look like categories. We recommend <code>google_product_category</code>.';
+    } else {
+      reasoning = 'The <code>google_product_category</code> parameter contains a better category path than <code>product_type</code>.';
+    }
+  }
+
+  return {param, reasoning, ptSamples, gpcSamples, ptScore, gpcScore, bothPoor, anyPoor};
+}
+
+function renderCategoryAnalysis(analysis){
+  const {param, reasoning, ptSamples, gpcSamples, bothPoor, anyPoor} = analysis;
+  window._fmCatParam = param;
+  window._fmCatNote = 'Recommended based on feed analysis';
+
+  const renderSamples = (samples, tag) => {
+    if(!samples.length) return `<span style="color:#94a3b8;font-size:.75rem">The <code>${tag}</code> parameter is not present in the feed</span>`;
+    return samples.map(s => `<span class="fm-tag fm-tag-gray" style="max-width:100%;overflow:hidden;text-overflow:ellipsis;display:inline-block;vertical-align:middle" title="${esc(s)}">${esc(s.length>60 ? s.substring(0,60)+'\u2026' : s)}</span>`).join(' ');
+  };
+
+  const isRecommended = (t) => t === param;
+
+  let html = `<div style="background:#fff7ed;border:2px solid #f97316;border-radius:9px;padding:12px 14px;margin-top:8px">
+    <div style="font-size:.78rem;font-weight:700;color:#c2410c;margin-bottom:10px">📂 Category analysis in feed</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px">
+      <div style="background:white;border:2px solid ${isRecommended('product_type')?'#10b981':'#e2e8f0'};border-radius:8px;padding:10px 12px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <code style="font-size:.78rem;font-weight:700;color:#1a1a2e">product_type</code>
+          ${isRecommended('product_type') ? '<span style="background:#d1fae5;color:#065f46;font-size:.68rem;font-weight:700;padding:1px 6px;border-radius:8px">✓ RECOMMENDED</span>' : ''}
+        </div>
+        <div style="font-size:.72rem;color:#64748b;margin-bottom:5px">Sample values:</div>
+        <div>${renderSamples(ptSamples, 'product_type')}</div>
+      </div>
+      <div style="background:white;border:2px solid ${isRecommended('google_product_category')?'#10b981':'#e2e8f0'};border-radius:8px;padding:10px 12px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <code style="font-size:.78rem;font-weight:700;color:#1a1a2e">google_product_category</code>
+          ${isRecommended('google_product_category') ? '<span style="background:#d1fae5;color:#065f46;font-size:.68rem;font-weight:700;padding:1px 6px;border-radius:8px">✓ RECOMMENDED</span>' : ''}
+        </div>
+        <div style="font-size:.72rem;color:#64748b;margin-bottom:5px">Sample values:</div>
+        <div>${renderSamples(gpcSamples, 'google_product_category')}</div>
+      </div>
+    </div>
+
+    <div style="background:${bothPoor?'#fef2f2':'#f0fdf4'};border:1.5px solid ${bothPoor?'#fecaca':'#a7f3d0'};border-radius:7px;padding:9px 12px;font-size:.78rem;color:#1a1a2e;line-height:1.55">
+      ${bothPoor ? '⚠️' : '💡'} <strong>${bothPoor ? 'Note:' : 'Recommendation:'}</strong> Enter <code style="font-weight:800">${param}</code> in the <em>Selected Category Name Param Name</em> field. ${reasoning}
+      ${bothPoor ? '<br><br><strong style="color:#991b1b">⚠️ Inform the client:</strong> <span style="color:#7f1d1d">Neither parameter in the feed represents a proper category tree. Values look like numeric IDs or overly generic names. The client should fix the feed to include a readable category path (e.g. <code>Electronics &gt; Audio &gt; Headphones</code>).</span>' : ''}
+    </div>
+  </div>`;
+
+  document.getElementById('fmCategoryAnalysis').innerHTML = html;
+}
+
+function runFeedMatching(){
+  // Update feed status display
+  fmUpdateFeedStatus();
+
+  const eventObj = fmParseEventJson();
+  if(!eventObj) return;
+
+  const { pids, skus } = fmExtractIds(eventObj);
+
+  // Render event IDs
+  const pidEl = document.getElementById('fmEventProductIds');
+  const skuEl = document.getElementById('fmEventProductSkus');
+  pidEl.innerHTML = pids.length ? pids.map(v=>`<span class="fm-tag fm-tag-blue">${esc(v)}</span>`).join(' ') : '<span style="font-size:.75rem;color:#94a3b8">brak / puste</span>';
+  skuEl.innerHTML = skus.length ? skus.map(v=>`<span class="fm-tag fm-tag-blue">${esc(v)}</span>`).join(' ') : '<span style="font-size:.75rem;color:#94a3b8">brak / puste</span>';
+
+  const matchResultEl = document.getElementById('fmMatchResult');
+  const configBox = document.getElementById('fmConfigBox');
+  const configBody = document.getElementById('fmConfigTableBody');
+  const catNote = document.getElementById('fmCategoryNote');
+
+  // No feed loaded
+  if(!products.length){
+    matchResultEl.innerHTML = `<div class="fm-match-result fm-match-warn"><div class="fm-match-title">⚠️ Feed not loaded — incomplete analysis</div><div class="fm-match-body">Upload a product feed in the section above so the checker can verify the match between event IDs and feed parameters (id, item_group_id, mpn, gtin).</div></div>`;
+    configBox.style.display = 'none';
+    catNote.style.display = 'none';
+    document.getElementById('fmResult').classList.add('show');
+    return;
+  }
+
+  // Check non-GMC
+  if(detectedFormat !== 'GMC'){
+    matchResultEl.innerHTML = `<div class="fm-match-result fm-match-err"><div class="fm-match-title">❌ Feed is not in GMC standard</div><div class="fm-match-body">The uploaded feed is in <strong>${detectedFormat}</strong> standard. Feed matching is only possible <strong>for GMC feeds</strong>. For Ceneo and IAI, matching is not required.</div></div>`;
+    configBox.style.display = 'none';
+    catNote.style.display = 'none';
+    document.getElementById('fmResult').classList.add('show');
+    return;
+  }
+
+  // Try to find match — prefer product_ids, fallback to product_skus
+  let matchSource = null; // 'ids' or 'skus'
+  let matchResult = null;
+  let matchedValue = null;
+
+  for(const pid of pids){
+    const r = fmFindFeedMatch(pid);
+    if(r){ matchResult = r; matchSource = 'ids'; matchedValue = pid; break; }
+  }
+  if(!matchResult){
+    for(const sku of skus){
+      const r = fmFindFeedMatch(sku);
+      if(r){ matchResult = r; matchSource = 'skus'; matchedValue = sku; break; }
+    }
+  }
+
+  // Build result HTML and config
+  if(matchResult){
+    const { field, feedVal, eventVal, matchType, separator, position } = matchResult;
+    const useSKU = matchSource === 'skus';
+
+    let explanation = '';
+    let sepConfig = separator || '';
+    let posConfig = position ? String(position) : '';
+
+    if(matchType === 'exact'){
+      explanation = `Value <strong>${esc(eventVal)}</strong> from <strong>product_${matchSource}</strong> exactly matches the parameter <strong>g:${field}</strong> in the feed (value: <strong>${esc(feedVal)}</strong>). No separator — leave the Separator and Position fields empty.`;
+      sepConfig = '';
+      posConfig = '';
+    } else if(matchType === 'feed_has_suffix'){
+      explanation = `Event value <strong>${esc(eventVal)}</strong> is the left/right part of the feed value <strong>${esc(feedVal)}</strong>. Separator <strong>"${separator}"</strong> trims the extra suffix. Position <strong>${position}</strong> — we take the ${position===1?'left':'right'} side after splitting.`;
+    } else if(matchType === 'event_has_suffix'){
+      explanation = `Event value <strong>${esc(eventVal)}</strong> contains separator <strong>"${separator}"</strong>. After trimming the suffix we get <strong>${esc(feedVal)}</strong>, which matches the parameter <strong>g:${field}</strong> w feedzie. Pozycja <strong>${position}</strong>.`;
+    } else {
+      explanation = `Partial match found: event <strong>${esc(eventVal)}</strong> ↔ feed <strong>${esc(feedVal)}</strong> (g:${field}). Please verify manually that the match is correct.`;
+    }
+
+    matchResultEl.innerHTML = `
+      <div class="fm-match-result fm-match-ok">
+        <div class="fm-match-title">✅ Match found</div>
+        <div class="fm-match-body">
+          ${explanation}<br><br>
+          <strong>Matching by:</strong> <span class="fm-tag fm-tag-green">product_${matchSource}</span>
+          → parametr feedu <span class="fm-tag fm-tag-green">g:${field}</span>
+          ${separator ? `| separator <span class="fm-tag fm-tag-blue">${esc(separator)}</span> | pozycja <span class="fm-tag fm-tag-blue">${position}</span>` : ''}
+          <br><br>
+          <strong>${useSKU ? '🟢 Toggle "Matched by SKU" → TURN ON' : '🔴 Toggle "Matched by SKU" → TURN OFF'}</strong>
+          — ${useSKU ? 'matching by product_skus requires enabling the SKU option' : 'matching by product_ids requires disabling the SKU option'}
+        </div>
+      </div>`;
+
+    // Build config table
+    const rows = [
+      ['Matched by SKU', useSKU ? 'ON (enable)' : 'OFF (disable)', useSKU ? 'Matching by product_skus' : 'Matching by product_ids'],
+      ['Selected Product Id Param Name', field, `Feed parameter matching ${useSKU?'product_skus':'product_ids'}`],
+      ['Product Id Position', posConfig || '—', posConfig ? (posConfig==='1'?'Left side of separator':'Right side of separator') : 'N/A (no separator)'],
+      ['Separator', sepConfig || '—', sepConfig ? `ID split character` : 'N/A (no separator)'],
+      ['Selected Product Variant Id Param Name', '—', 'Optional — leave empty'],
+      ['Product Variant Id Position', '—', 'Optional — leave empty'],
+      ['Variant Separator', '—', 'Optional — leave empty'],
+      ['Selected Category Name Param Name', window._fmCatParam || 'product_type', window._fmCatNote || 'Check analysis below'],
+    ];
+
+    configBody.innerHTML = rows.map(([label, val, note]) =>
+      `<tr${label==='Selected Category Name Param Name'?' style="background:#fff7ed;border-left:3px solid #f97316;"':''}><td${label==='Selected Category Name Param Name'?' style="color:#c2410c;font-weight:700"':''}>${label}</td><td${val==='—'?' class="td-optional"':''}${label==='Selected Category Name Param Name'?' style="color:#c2410c;font-weight:800"':''}>${val==='—'?'':esc(val)}</td><td>${esc(note)}</td></tr>`
+    ).join('');
+
+    configBox.style.display = 'block';
+    catNote.style.display = 'block';
+      const catAnalysis = fmAnalyzeCategories();
+      renderCategoryAnalysis(catAnalysis);
+      // Update config table with recommended param
+      window._fmCatParam = catAnalysis.param;
+      // Re-render config table row
+      const rows2 = configBody.querySelectorAll('tr');
+      rows2.forEach(r => {
+        if(r.cells[0] && r.cells[0].textContent === 'Selected Category Name Param Name'){
+          r.cells[1].textContent = catAnalysis.param;
+          r.cells[2].textContent = 'Recommended based on feed analysis';
+        }
+      });
+
+  } else {
+    // No match found
+    const sampleFeedIds = products.slice(0,5).map(p=>p.id).filter(Boolean);
+    const allIds = [...pids, ...skus].filter(Boolean);
+    matchResultEl.innerHTML = `
+      <div class="fm-match-result fm-match-err">
+        <div class="fm-match-title">❌ No match found</div>
+        <div class="fm-match-body">
+          The checker could not match any event value to the <strong>id, item_group_id, mpn, gtin</strong> parameters in the feed.<br><br>
+          <strong>Event values:</strong> ${allIds.map(v=>`<span class="fm-tag fm-tag-red">${esc(v)}</span>`).join(' ') || '<em>brak</em>'}<br>
+          <strong>Sample feed IDs:</strong> ${sampleFeedIds.map(v=>`<span class="fm-tag fm-tag-gray">${esc(v)}</span>`).join(' ')}<br><br>
+          Check the feed manually to find which parameters (id, item_group_id, mpn, gtin) store the identifiers and compare them with the event values. Changes to the integration or feed may be required.
+        </div>
+      </div>`;
+    configBox.style.display = 'none';
+    catNote.style.display = 'none';
+  }
+
+  document.getElementById('fmResult').classList.add('show');
+  document.getElementById('fmResult').scrollIntoView({behavior:'smooth'});
+  showToast('Feed Matching analysis complete!','success');
+}
+
+function copyFmConfig(){
+  const rows = document.querySelectorAll('#fmConfigTableBody tr');
+  let txt = 'Konfiguracja Feed Matching (edrone → Admin → Feed → Feed Matching):\n\n';
+  rows.forEach(r=>{
+    const cells = r.querySelectorAll('td');
+    txt += cells[0]?.textContent + ': ' + cells[1]?.textContent + '\n';
+  });
+  navigator.clipboard.writeText(txt)
+    .then(()=>showToast('Configuration copied ✅','success'))
+    .catch(()=>showToast('Copy error','error'));
+}
+
+</script>
+</body>
+</html>
