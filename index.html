@@ -497,7 +497,7 @@ function validate(prods,fmt){
     if(igCov>0&&igCov<0.95)issues.push({type:'warning',field:'item_group_id_coverage',label:'Inconsistent item_group_id',desc:`item_group_id present in only ${Math.round(igCov*100)}% of products. For matching, the "id" field is preferred.`,count:prods.length-hasIGI.length,total:prods.length,products:[]});
     const sepPat=/^[a-zA-Z0-9]+([.\-_\/])[a-zA-Z0-9]+/;
     const idsWithSep=prods.filter(p=>p.id&&sepPat.test(p.id.toString()));
-    if(idsWithSep.length>0&&idsWithSep.length/prods.length>0.5){const sample=idsWithSep[0].id.toString();const sepChar=(sample.match(/[.\-_\/]/)||['.'])[0];issues.push({type:'warning',field:'id_separator',label:'Product ID contains separator',desc:`Separator detected in ID (np. "${sample}", sep: "${sepChar}"). Skonfiguruj Feed Matching w panelu edrone (Admin > Feed > Feed matching).`,count:idsWithSep.length,total:prods.length,products:idsWithSep.slice(0,50)});}
+    if(idsWithSep.length>0&&idsWithSep.length/prods.length>0.5){const sample=idsWithSep[0].id.toString();const sepChar=(sample.match(/[.\-_\/]/)||['.'])[0];issues.push({type:'warning',field:'id_separator',label:'Product ID contains separator',desc:`Separator detected in ID (np. "${sample}", sep: "${sepChar}"). Configure Feed Matching in the edrone panel (Admin > Feed > Feed matching).`,count:idsWithSep.length,total:prods.length,products:idsWithSep.slice(0,50)});}
     const nestedCats=prods.filter(p=>p.product_type&&p.product_type.includes('>'));
     if(nestedCats.length>0)issues.push({type:'ok',field:'category_nested',label:'Nested categories (separator ">")',desc:'edrone will use the last category from the chain. Check if it is detailed enough.',count:nestedCats.length,total:prods.length,products:nestedCats.slice(0,10)});
   }
@@ -668,6 +668,11 @@ ${intro}
 
 ❌ CRITICAL ERRORS:
 `
+          : isPT
+          ? `Durante a verificação encontramos erros que precisam ser corrigidos:
+
+❌ ERROS CRÍTICOS:
+`
           : `Podczas weryfikacji wykryliśmy błędy, które wymagają poprawienia:
 
 ❌ BŁĘDY KRYTYCZNE:
@@ -694,6 +699,10 @@ ${intro}
           ? `
 ⚠️ WARNINGS:
 `
+          : isPT
+          ? `
+⚠️ AVISOS:
+`
           : `
 ⚠️ OSTRZEŻENIA:
 `;
@@ -712,6 +721,11 @@ ${intro}
         ? `
 Please apply the fixes and re-submit the feed.
 We are here to help! 😊
+`
+        : isPT
+        ? `
+Por favor, aplique as correções e reenvie o feed.
+Estamos à disposição! 😊
 `
         : `
 Prosimy o wprowadzenie poprawek i ponowne przesłanie feeda.
@@ -985,9 +999,13 @@ function fmFindFeedMatch(idValue){
   const seps = ['-','_','.','/',':'];
   const tagFields = [
     {tag:'g:id',            field:'id'},
+    {tag:'id',              field:'id'},
     {tag:'g:item_group_id', field:'item_group_id'},
+    {tag:'item_group_id',   field:'item_group_id'},
     {tag:'g:mpn',           field:'mpn'},
+    {tag:'mpn',             field:'mpn'},
     {tag:'g:gtin',          field:'gtin'},
+    {tag:'gtin',            field:'gtin'},
   ];
 
   // Extract all values for a given tag from raw XML text
