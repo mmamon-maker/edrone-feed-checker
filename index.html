@@ -489,7 +489,7 @@ function validate(prods,fmt){
   const badSP=prods.filter(p=>{if(!p.sale_price)return false;const c=parseFloat(p.sale_price.toString().replace(/[, ]/g,'.').replace(/[^0-9.]/g,''));return isNaN(c)||c<=0});issues.push({type:badSP.length>0?'warning':'ok',field:'sale_price_format',label:'Invalid sale_price format',desc:'Sale price must be a number greater than 0.',count:badSP.length,total:prods.length,products:badSP});
   const spH=prods.filter(p=>{if(!p.sale_price||!p.price)return false;const s=parseFloat(p.sale_price.toString().replace(/[, ]/g,'.').replace(/[^0-9.]/g,'')),r=parseFloat(p.price.toString().replace(/[, ]/g,'.').replace(/[^0-9.]/g,''));return !isNaN(s)&&!isNaN(r)&&s>=r});issues.push({type:spH.length>0?'warning':'ok',field:'sale_price_logic',label:'sale_price >= regular price',desc:'Sale price should be lower than the regular price.',count:spH.length,total:prods.length,products:spH});
   issues.push({type:'ok',field:'encoding',label:'UTF-8 encoding',desc:'File is UTF-8 encoded.',count:0,total:prods.length,products:[]});
-  const noQ=prods.filter(p=>!p.quantity||!p.quantity.toString().trim());issues.push({type:noQ.length===prods.length?'warning':'ok',field:'quantity',label:'Missing quantity field',desc:'Required for the Low stock products feature.',count:noQ.length,total:prods.length,products:[]});
+  const noQ=prods.filter(p=>!p.quantity||!p.quantity.toString().trim());issues.push({type:noQ.length>0?'warning':'ok',field:'quantity',label:'Missing quantity field',desc:'Required for the Low stock products feature.',count:noQ.length,total:prods.length,products:noQ.slice(0,50)});
 
   if(fmt==='GMC'){
     const hasIGI=prods.filter(p=>/item_group_id/i.test(p._raw||''));
@@ -773,7 +773,7 @@ function renderIssues(){
   vis.forEach((issue,idx)=>{
     const t=issue.type==='ok'||issue.count===0?'ok':issue.type,bl=t==='error'?'ERROR':t==='warning'?'WARNING':'OK';
     const div=document.createElement('div');div.className='issue-item';
-    div.innerHTML=`<div class="issue-header" onclick="toggleIssue(${idx})"><span class="badge ${t}">${bl}</span><span class="issue-title">${issue.label}</span>${issue.count>0?`<span class="issue-count">${issue.count} prod.</span>`:''}<span class="arrow" id="arr-${idx}" style="margin-left:auto;color:#94a3b8;transition:transform .2s">▼</span></div><div class="issue-body" id="body-${idx}"><p class="issue-desc">${issue.desc}</p>${issue.products&&issue.products.length>0?renderTable(issue,0):'<p style="font-size:.78rem;color:#10b981">✅ Wszystkie produkty poprawne.</p>'}</div>`;
+    div.innerHTML=`<div class="issue-header" onclick="toggleIssue(${idx})"><span class="badge ${t}">${bl}</span><span class="issue-title">${issue.label}</span>${issue.count>0?`<span class="issue-count">${issue.count} prod.</span>`:''}<span class="arrow" id="arr-${idx}" style="margin-left:auto;color:#94a3b8;transition:transform .2s">▼</span></div><div class="issue-body" id="body-${idx}"><p class="issue-desc">${issue.desc}</p>${issue.products&&issue.products.length>0?renderTable(issue,0):'<p style="font-size:.78rem;color:#10b981">✅ All products correct.</p>'}</div>`;
     list.appendChild(div);
   });
 }
